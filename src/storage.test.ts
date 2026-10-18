@@ -14,7 +14,9 @@ describe('local document storage', () => {
     }
     await saveGuest(guest)
     await saveBooking(booking)
-    await saveInvoice(invoice)
+    await saveInvoice({ ...invoice, number: 'INV-007' })
+    const savedDraft = (await loadData()).invoices.find((entry) => entry.id === invoice.id)
+    expect(savedDraft?.number).toBe('INV-007')
     const issued = await issueInvoice(invoice.id, defaultSettings.invoicePrefix)
     expect(issued.number).toMatch(/^SHS\/INV\/00001\/\d{2}$/)
 

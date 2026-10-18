@@ -44,6 +44,7 @@ const heading: Record<View, string> = {
 
 function App() {
   const [data, setData] = useState<AppData | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [view, setView] = useState<View>('dashboard')
   const [query, setQuery] = useState('')
   const [modal, setModal] = useState<Modal>(null)
@@ -57,8 +58,17 @@ function App() {
     setData(await loadData())
   }
 
+  async function openRecords() {
+    setLoadError(null)
+    try {
+      await refresh()
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : 'Could not open local records.')
+    }
+  }
+
   useEffect(() => {
-    void refresh().catch((error: unknown) => setNotice({ kind: 'error', text: error instanceof Error ? error.message : 'Could not open local records.' }))
+    void openRecords()
   }, [])
 
   useEffect(() => {
@@ -263,7 +273,17 @@ function App() {
     await runAction(async () => { await importBackup(file) }, 'Backup restored.')
   }
 
-  if (!data) return <div className="loading-screen"><div className="loader-mark"><Home size={22} /></div><span>Opening local records</span></div>
+  if (!data) return <div className="loading-screen">
+    <div className="loader-mark"><Home size={22} /></div>
+    {loadError
+      ? <div className="load-error" role="alert">
+        <strong>Could not open local records</strong>
+        <span>Check that the app server is running, then try again.</span>
+        <small>{loadError}</small>
+        <button className="button button-primary" onClick={() => void openRecords()}>Try again</button>
+      </div>
+      : <span>Opening local records</span>}
+  </div>
 
   const activeModalInvoice = modal?.type === 'payment' || modal?.type === 'adjustment' ? invoices.find((item) => item.id === modal.invoiceId) : undefined
 

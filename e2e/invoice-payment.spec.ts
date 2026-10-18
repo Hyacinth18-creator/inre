@@ -1,6 +1,20 @@
 import { expect, test } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 
+test('shows a retry when the records service is unavailable', async ({ page }) => {
+  await page.route('**/api/**', (route) => route.abort())
+  await page.goto('/')
+  await expect(page.getByRole('alert')).toContainText('Check that the app server is running')
+  await expect(page.getByText('Opening local records')).toHaveCount(0)
+
+  await page.unroute('**/api/**')
+  await page.getByRole('button', { name: 'Try again' }).click()
+  await expect(page.getByRole('heading', { name: 'Good day' })).toBeVisible()
+  const rewrittenApiResponse = await page.request.get('/api/index?path=data')
+  expect(rewrittenApiResponse.ok()).toBeTruthy()
+  await expect(rewrittenApiResponse.json()).resolves.toHaveProperty('settings')
+})
+
 test('issues an invoice, records installments, and downloads a linked receipt PDF', async ({ page }) => {
   await page.goto('/')
   await expect(page.getByRole('heading', { name: 'Good day' })).toBeVisible()

@@ -15,14 +15,9 @@ import {
   type Receipt,
   type Unit,
 } from '../src/domain.js'
+import { DatabaseError } from './databaseErrors.js'
 
 type Row = Record<string, unknown>
-
-export class DatabaseError extends Error {
-  constructor(message: string, readonly status = 400) {
-    super(message)
-  }
-}
 
 export function createDatabase(path = './data/shwari.sqlite') {
   const db = new DatabaseSync(path)
@@ -163,11 +158,12 @@ export function createDatabase(path = './data/shwari.sqlite') {
   function saveInvoice(invoice: Invoice) {
     if (invoice.status !== 'draft') throw new DatabaseError('New invoices must be saved as drafts.')
     if (invoice.items.length === 0) throw new DatabaseError('An invoice needs at least one charge line.')
+    const number = invoice.number?.trim() || 'DRAFT'
     transaction(() => {
       db.prepare(`INSERT INTO invoices
         (id, number, status, guest_id, booking_id, issue_date, due_date, discount, additional_charge, notes, created_at, issued_at)
-        VALUES (?, 'DRAFT', 'draft', ?, ?, ?, ?, ?, ?, ?, ?, NULL)`)
-        .run(invoice.id, invoice.guestId, invoice.bookingId, invoice.issueDate, invoice.dueDate, invoice.discount, invoice.additionalCharge, invoice.notes ?? null, invoice.createdAt)
+        VALUES (?, ?, 'draft', ?, ?, ?, ?, ?, ?, ?, ?, NULL)`)
+        .run(invoice.id, number, invoice.guestId, invoice.bookingId, invoice.issueDate, invoice.dueDate, invoice.discount, invoice.additionalCharge, invoice.notes ?? null, invoice.createdAt)
       const line = db.prepare('INSERT INTO invoice_line_items VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
       invoice.items.forEach((item, position) => line.run(item.id, invoice.id, position, item.description, item.rate, item.quantity, item.quantityLabel, item.total))
       insertAudit(audit('invoice', invoice.id, 'created', 'Invoice draft created'))

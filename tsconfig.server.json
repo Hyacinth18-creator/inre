@@ -11,6 +11,6 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["server/**/*.ts", "src/domain.ts"],
+  "include": ["api/**/*.ts", "server/**/*.ts", "src/domain.ts"],
   "exclude": ["server/**/*.test.ts"]
 }
