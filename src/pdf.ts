@@ -34,6 +34,19 @@ async function officialHeader(): Promise<string | undefined> {
   }
 }
 
+async function logoWatermark(): Promise<string | undefined> {
+  try {
+    const response = await fetch('/assets/shwari-logo.png')
+    if (!response.ok) return undefined
+    const blob = await response.blob()
+    const bytes = new Uint8Array(await blob.arrayBuffer())
+    const binary = Array.from(bytes, (byte) => String.fromCharCode(byte)).join('')
+    return `data:image/png;base64,${btoa(binary)}`
+  } catch {
+    return undefined
+  }
+}
+
 function setPageHeader(doc: jsPDF, title: string, settings: BusinessSettings, header?: string) {
   if (header) doc.addImage(header, 'JPEG', 25, 9, 160, 28.5)
   else {
@@ -56,10 +69,26 @@ function setPageHeader(doc: jsPDF, title: string, settings: BusinessSettings, he
   doc.setFont('helvetica', 'normal')
 }
 
-function footer(doc: jsPDF, settings: BusinessSettings) {
+function footer(doc: jsPDF, settings: BusinessSettings, watermark?: string) {
   const pageCount = doc.getNumberOfPages()
   for (let page = 1; page <= pageCount; page += 1) {
     doc.setPage(page)
+    if (watermark) {
+      doc.saveGraphicsState()
+      doc.setGState(doc.GState({ opacity: 0.07 }))
+      doc.addImage(watermark, 'PNG', 64, 112, 82, 82)
+      doc.restoreGraphicsState()
+    }
+    doc.setDrawColor(...green)
+    doc.setLineWidth(0.45)
+    doc.roundedRect(152, 262, 33, 14, 2, 2, 'S')
+    doc.roundedRect(153, 263, 31, 12, 1.5, 1.5, 'S')
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(...green)
+    doc.setFontSize(6.5)
+    doc.text('SHWARI HOME STAYS', 168.5, 268, { align: 'center' })
+    doc.setFontSize(5)
+    doc.text('OFFICIAL DOCUMENT', 168.5, 272, { align: 'center' })
     doc.setDrawColor(...border)
     doc.line(25, 279, 185, 279)
     doc.setFont('helvetica', 'normal')
@@ -86,7 +115,7 @@ function chargeRows(context: DocumentContext) {
 
 export async function createReceiptPdf(context: DocumentContext): Promise<jsPDF> {
   const doc = new jsPDF({ format: 'a4', unit: 'mm', orientation: 'portrait' })
-  const header = await officialHeader()
+  const [header, watermark] = await Promise.all([officialHeader(), logoWatermark()])
   setPageHeader(doc, 'PAYMENT RECEIPT', context.settings, header)
 
   doc.setFontSize(8.7)
@@ -150,13 +179,14 @@ export async function createReceiptPdf(context: DocumentContext): Promise<jsPDF>
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(...green)
   doc.text('Thank you for doing business with us.', 25, Math.min(y, 268))
+  footer(doc, context.settings, watermark)
   return doc
 }
 
 export async function createInvoicePdf(context: DocumentContext): Promise<jsPDF> {
   if (!context.invoice) throw new Error('Invoice details are required.')
   const doc = new jsPDF({ format: 'a4', unit: 'mm', orientation: 'portrait' })
-  const header = await officialHeader()
+  const [header, watermark] = await Promise.all([officialHeader(), logoWatermark()])
   setPageHeader(doc, 'INVOICE', context.settings, header)
   const invoice = context.invoice
   const subtotal = invoiceSubtotal(invoice)
@@ -203,7 +233,7 @@ export async function createInvoicePdf(context: DocumentContext): Promise<jsPDF>
     doc.setFontSize(8.5)
     doc.text(doc.splitTextToSize(invoice.notes, 160), 25, Math.min(y + 13, 263))
   }
-  footer(doc, context.settings)
+  footer(doc, context.settings, watermark)
   return doc
 }
 
